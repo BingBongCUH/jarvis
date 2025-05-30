@@ -53,21 +53,12 @@ def main():
             print("🛑 Shutting down Jarvis.")
             break
 
-        # 🧠 Use Intent Parser
         try:
-            result = intent_parser.interpret_user_input(user_input)
-            tool_name = result.get("tool")
-            reason = result.get("reasoning", "")
-            parsed_input = result.get("parsed_input", user_input)
-
-            if reason:
-                print(f"[Interpreter] 🤔 {reason}")
+            tool_name, parsed_input = intent_parser.interpret_user_input(user_input)
         except Exception as e:
             print(f"[Interpreter Error] {e}")
-            tool_name = None
-            parsed_input = user_input
+            tool_name, parsed_input = None, user_input
 
-        # 🛠 Run tool if found
         if tool_name in available_tools:
             response = run_tool(tool_name, parsed_input)
         else:
