@@ -1,0 +1,12 @@
+Add self-upgrading tool generator. => tools/add_self-upgrading_tool_generator.py
+Enable Jarvis to spawn specialized clones. => tools/enable_jarvis_to_spawn_specialized_clones.py
+Implement tool validation + testing. => tools/implement_tool_validation_+_testing.py
+Build natural language interpreter. => tools/natural_language_interpreter.py
+Add self-upgrading tool generator. => tools/selfupgrading_tool_generator.py
+Enable Jarvis to spawn specialized clones. => tools/jarvis_to_spawn_specialized_clones.py
+Implement tool validation + testing. => tools/tool_validation__testing.py
+Build natural language interpreter. => tools/build_natural_language_interpreter.py
+Add self-upgrading tool generator. => tools/self_upgrading_tool_generator.py
+Enable Jarvis to spawn specialized clones. => tools/enable_jarvis_to_spawn_specialized_clones.py
+Implement tool validation + testing. => tools/implement_tool_validation_testing.py
+Add self-upgrading tool generator. => tools/add_self_upgrading_tool_generator.py
