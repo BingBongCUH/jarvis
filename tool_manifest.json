@@ -1,1 +1,16 @@
-[]
+[
+    {
+        "tool_name": "spawn_specialized_clones",
+        "task": "Spawn specialized clones",
+        "fulfills": "spawn specialized clones",
+        "path": "tools/spawn_specialized_clones.py",
+        "created_at": "2025-05-30T00:58:13.403218"
+    },
+    {
+        "tool_name": "tool_validation_testing",
+        "task": "Tool validation + testing",
+        "fulfills": "tool validation + testing",
+        "path": "tools/tool_validation_testing.py",
+        "created_at": "2025-05-30T00:58:18.458204"
+    }
+]

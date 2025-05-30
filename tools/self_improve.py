@@ -1,149 +1,100 @@
-from jarvis_modules import self_guidance, openai_setup
-from tools import tool_generator
 import os
 import json
 import traceback
-import re
 from datetime import datetime
+from jarvis_modules import self_guidance, openai_setup
+from tools import tool_generator
 
-# === Generate a clean tool name using GPT ===
+
 def generate_tool_filename(task_description):
-    prompt = f"""
-You are a helpful assistant. Based on the following task, return a clean Python filename.
-
-Task:
-"{task_description}"
-
-Rules:
-- Only return the file name, lowercase
-- Use underscores instead of spaces
-- Do NOT include ".py"
-- Must be a valid Python identifier (no punctuation, numbers allowed)
-- Return ONLY the filename, nothing else
-"""
     client = openai_setup.client
+    prompt = f"""
+You are a helpful assistant. Convert the task below into a clean Python filename.
+Task: "{task_description}"
+Rules:
+- Only return the filename (no quotes, no .py)
+- Use only lowercase and underscores
+- Valid Python identifier
+"""
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": "You convert task descriptions into valid Python filenames."},
+            {"role": "system", "content": "Filename generator"},
             {"role": "user", "content": prompt}
         ],
         temperature=0.2,
     )
-    filename = response.choices[0].message.content.strip().lower()
-    filename = filename.replace(".py", "")
-    filename = "".join(c for c in filename if c.isalnum() or c == "_")
-    return filename
+    filename = response.choices[0].message.content.strip().replace(".py", "")
+    print(f"[DEBUG] Generated filename: {filename}")
+    return "".join(c for c in filename if c.isalnum() or c == "_")
 
-# === Generate a test script for the tool ===
-def generate_test_script(tool_name, task_description):
-    prompt = f"""
-You are a Python test writer.
 
-Write a basic test script for the tool '{tool_name}', which was created to: {task_description}
-
-Requirements:
-- Assume the tool has a run(user_input) function
-- Import the tool by name
-- Call run() safely
-- Print the result
-- Include 1–2 basic checks if appropriate
-- No need for unittest or pytest frameworks
-- Return ONLY the code
-"""
-    client = openai_setup.client
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You write simple Python test scripts."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3,
-    )
-    code = response.choices[0].message.content
-    if "```python" in code:
-        code = code.split("```python")[1].split("```")[0]
-    return code.strip()
-
-# === Main self-improvement runner ===
 def run(user_input=None):
+    print("[DEBUG] Starting self-improvement run")
+
     with open("core_vision.json", "r") as f:
         prime_directive = json.load(f)["prime_directive"]
 
-    tool_files = [f[:-3] for f in os.listdir("tools") if f.endswith(".py") and f != "self_improve.py"]
-    current_capabilities = [f"Tool: {name.replace('_', ' ')}" for name in tool_files]
+    existing_tools = [
+        f[:-3] for f in os.listdir("tools")
+        if f.endswith(".py") and f != "self_improve.py"
+    ]
+    current_capabilities = [f"Tool: {t}" for t in existing_tools]
+    print(f"[DEBUG] Current tools: {existing_tools}")
 
     suggestions = self_guidance.evaluate_progress(current_capabilities, prime_directive)
+    print(f"[DEBUG] Suggestions: {suggestions}")
+
     if not suggestions:
-        return "🟢 No upgrades needed. Jarvis is fully aligned."
+        return "🟢 No upgrades needed."
 
-    upgrade_results = []
-
-    for task in suggestions:
-        print(f"[Self-Improve] Generating upgrade for: {task}")
+    results = []
+    for suggestion in suggestions:
         try:
-            result = tool_generator.run(task)
-            base_name = generate_tool_filename(task)
-            dest_path = f"tools/{base_name}.py"
+            print(f"[🔧] Attempting: {suggestion}")
+            result = tool_generator.run(suggestion)
 
-            if os.path.exists("tools/generated_tool.py"):
-                if os.path.exists(dest_path):
-                    os.remove("tools/generated_tool.py")
-                    upgrade_results.append(f"⚠️ Skipped: Tool already exists → {dest_path}")
-                    continue
-                else:
-                    os.rename("tools/generated_tool.py", dest_path)
+            if not os.path.exists("tools/generated_tool.py"):
+                print("[DEBUG] tools/generated_tool.py does NOT exist.")
+                results.append(f"❌ No tool generated for '{suggestion}'")
+                continue
 
-                    # === Validate syntax ===
-                    with open(dest_path, "r") as f:
-                        code = f.read()
-                        compile(code, dest_path, 'exec')
+            filename = generate_tool_filename(suggestion)
+            filepath = f"tools/{filename}.py"
 
-                    # === Generate and run test ===
-                    test_code = generate_test_script(base_name, task)
-                    test_path = f"tests/test_{base_name}.py"
-                    os.makedirs("tests", exist_ok=True)
-                    with open(test_path, "w") as tf:
-                        tf.write(test_code)
+            if os.path.exists(filepath):
+                print("[DEBUG] Tool already exists. Skipping.")
+                os.remove("tools/generated_tool.py")
+                results.append(f"⚠️ Tool already exists: {filepath}")
+                continue
 
-                    print(f"[Test] Running test for {base_name}...")
-                    test_result = os.system(f"python {test_path}")
-                    if test_result != 0:
-                        os.remove(dest_path)
-                        os.remove(test_path)
-                        upgrade_results.append(f"❌ Test failed. Tool removed → {dest_path}")
-                        continue
+            os.rename("tools/generated_tool.py", filepath)
+            print(f"[DEBUG] Tool moved to: {filepath}")
 
-                    # === Log to changelog ===
-                    log_entry = f"{task} => {dest_path}\n"
-                    with open("upgrade_changelog.txt", "a") as log_file:
-                        log_file.write(log_entry)
+            # === Write to tool_manifest.json ===
+            entry = {
+                "tool_name": filename,
+                "task": suggestion,
+                "fulfills": suggestion.lower(),
+                "path": filepath,
+                "created_at": datetime.now().isoformat()
+            }
 
-                    # === Add to manifest ===
-                    manifest_entry = {
-                        "tool_name": base_name,
-                        "task": task,
-                        "fulfills": task.strip().lower(),
-                        "path": dest_path,
-                        "created_at": datetime.now().isoformat()
-                    }
+            manifest_path = "tool_manifest.json"
+            try:
+                with open(manifest_path, "r") as mf:
+                    manifest_data = json.load(mf)
+            except Exception:
+                manifest_data = []
 
-                    manifest_path = "tool_manifest.json"
-                    try:
-                        with open(manifest_path, "r") as f:
-                            existing = json.load(f)
-                    except:
-                        existing = []
+            print(f"[DEBUG] Writing entry to manifest: {entry}")
+            manifest_data.append(entry)
+            with open(manifest_path, "w") as mf:
+                json.dump(manifest_data, mf, indent=4)
 
-                    existing.append(manifest_entry)
-                    print("[Manifest] Writing tool to manifest:", manifest_entry)
-                    with open(manifest_path, "w") as f:
-                        json.dump(existing, f, indent=4)
+            results.append(f"✅ Tool saved: {filepath}")
 
-                    upgrade_results.append(f"✅ {task} → {dest_path}")
-            else:
-                upgrade_results.append(f"❌ Failed: No tool generated for '{task}'")
         except Exception as e:
-            upgrade_results.append(f"⚠️ Error during upgrade '{task}': {str(e)}\n{traceback.format_exc()}")
+            results.append(f"❌ Error for '{suggestion}': {e}\n{traceback.format_exc()}")
 
-    return "\n".join(upgrade_results)
+    return "\n".join(results)

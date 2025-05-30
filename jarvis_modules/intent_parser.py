@@ -5,7 +5,7 @@ import os
 def get_tool_names():
     return [
         f[:-3] for f in os.listdir("tools")
-        if f.endswith(".py") and not f.startswith("__") and f != "self_improve.py"
+        if f.endswith(".py") and not f.startswith("__")
     ]
 
 def interpret_user_input(user_input):
