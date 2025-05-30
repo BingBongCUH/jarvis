@@ -17,26 +17,26 @@ def upgrade_pip():
         return f"[Error] Failed to upgrade pip: {e}"
 
 def generate_self_upgrading_tool(tool_name):
-    tool_code = f"""
+    try:
+        tool_code = f'''
 import subprocess
 import sys
 
-def upgrade_{tool_name}():
+def run(user_input=None):
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "{tool_name}"])
-        print("[Success] {tool_name} upgraded successfully.")
+        return "✅ Successfully upgraded {tool_name}"
     except Exception as e:
-        print(f"[Error] Failed to upgrade {tool_name}: {{e}}")
-        sys.exit(1)
+        return f"❌ Error upgrading {tool_name}: {{e}}"
+'''
+        os.makedirs("tools", exist_ok=True)
+        filename = f"tools/{tool_name}_upgrader.py"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(tool_code)
+        return f"🛠️ Generated upgrader script: {filename}"
+    except Exception as e:
+        return f"❌ Failed to generate upgrader for {tool_name}: {e}"
 
-if __name__ == "__main__":
-    upgrade_{tool_name}()
-"""
-
-    filename = f"{tool_name}_upgrader.py"
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(tool_code)
-    return f"[Generated] {filename}"
 
 def run(user_input=None):
     output = []
