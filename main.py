@@ -1,7 +1,13 @@
+from tools import task_supervisor
 import os
 import importlib
 import json
 from jarvis_modules import self_guidance, intent_parser  # Intent parser added
+from tools import ponder
+
+# Start the internal thought loop (every 60 seconds)
+ponder.start_ponder_loop(interval_seconds=60)
+
 
 # === Load the Prime Directive ===
 def load_prime_directive():
@@ -49,9 +55,17 @@ def main():
 
     while True:
         user_input = input("You: ").strip()
+        if user_input.lower() in ["explore", "explore this", "explore this further", "build", "roadmap", "ignore"]:
+            ponder.handle_user_response(user_input)
+            continue
+
         if user_input.lower() == "quit":
-            print("🛑 Shutting down Jarvis.")
+            print("Shutting down Jarvis.")
             break
+
+        if user_input.lower() in ["explore", "explore this further", "build", "roadmap", "ignore"]:
+            ponder.handle_user_response(user_input)
+            continue
 
         try:
             tool_name, parsed_input = intent_parser.interpret_user_input(user_input)
@@ -60,11 +74,18 @@ def main():
             tool_name, parsed_input = None, user_input
 
         if tool_name in available_tools:
-            response = run_tool(tool_name, parsed_input)
+            try:
+                response = run_tool(tool_name, parsed_input)
+            except Exception as e:
+                print(f"[Main] Tool '{tool_name}' failed. Passing to task supervisor...\n{e}")
+                response = task_supervisor.run_tool_with_repair(tool_name, parsed_input)
         else:
             response = "I don’t know how to do that yet."
 
-        print(f"🤖 {response}")
+    response = "goodbye sir"
+    print(f"🤖 {response}")
+
+
 
 if __name__ == "__main__":
     main()

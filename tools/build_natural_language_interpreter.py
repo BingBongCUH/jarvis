@@ -12,4 +12,3 @@ def nl_interpreter(sentence):
     sent = preprocess(sentence)
     return sent
 
-print(nl_interpreter("The quick brown fox jumps over the lazy dog."))
